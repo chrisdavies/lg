@@ -104,7 +104,7 @@ int adjustBrightnessPercent(libusb_device_handle *lg_handle, int percent) {
   return newPercent;
 }
 
-// Clean up ncurses and libusb handles.
+// Clean up libusb handles.
 void cleanup(int succeeded, libusb_device_handle *lg_handle) {
   if (succeeded) {
     libusb_release_interface(lg_handle, LG_IFACE);
