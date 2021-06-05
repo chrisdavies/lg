@@ -23,10 +23,12 @@ const int LG27MD5KA = 0x9a40;
 
 const int LG_IFACE = 1;
 
-// These values control the adjustment behavior.
+// The maximum (absolute) brightness value we'll set.
 static const uint16_t MAX_BRIGHTNESS = 0xd2f0;
-static const uint16_t MIN_BRIGHTNESS = 0x0000;
-static const uint8_t BRIGHTNESS_STEP = 1;
+// We won't allow the brightness to go below this.
+static const uint16_t MIN_PERCENT = 1;
+// The amount (in %) we dim / brighten per adjustment
+static const uint8_t BRIGHTNESS_STEP = 2;
 
 static const int HID_GET_REPORT = 0x01;
 static const int HID_SET_REPORT = 0x09;
@@ -74,26 +76,34 @@ void set_brightness(libusb_device_handle *lg_handle, uint16_t val) {
 
 // Get the display brightness in percent.
 uint8_t getBrightnessPercent(libusb_device_handle *lg_handle) {
-  return (uint8_t)(((float)(getBrightness(lg_handle)) / 54000) * 100.0);
+  return (uint8_t)(((float)(getBrightness(lg_handle)) / MAX_BRIGHTNESS) * 100.0);
 }
 
-// Set the display brightness in percent.
-int setBrightnessPercent(libusb_device_handle *lg_handle, int val) {
-  if (val < 0) {
-    val = 0;
-  } else if (val > 100) {
-    val = 100;
-  } else {
-    val = val - (val % 5);
+// Increment / decrement brightness by the specified percent.
+int adjustBrightnessPercent(libusb_device_handle *lg_handle, int percent) {
+  int currentPercent = getBrightnessPercent(lg_handle);
+  int newPercent = currentPercent + percent;
+  int rem = newPercent % BRIGHTNESS_STEP;
+
+  // If the newPercent is not an even multiple of
+  // BRIGHTNESS_STEP, we'll adjust it to be one...
+  if (rem) {
+    newPercent += percent > 0 ? rem : -rem;
   }
-  uint16_t brightness = val * 54000 / 100;
+
+  if (newPercent > 100) {
+    newPercent = 100;
+  } else if (newPercent < MIN_PERCENT) {
+    newPercent = MIN_PERCENT;
+  }
+
+  uint16_t brightness = newPercent * MAX_BRIGHTNESS / 100;
   set_brightness(lg_handle, brightness);
-  return val;
+  return newPercent;
 }
 
 // Clean up ncurses and libusb handles.
 void cleanup(int succeeded, libusb_device_handle *lg_handle) {
-  endwin();
   if (succeeded) {
     libusb_release_interface(lg_handle, LG_IFACE);
     libusb_attach_kernel_driver(lg_handle, LG_IFACE);
@@ -106,7 +116,6 @@ libusb_device_handle *init(libusb_device **lgdevs) {
   libusb_device_handle *lg_handle;
   int libusb_success;
 
-  initscr();
   timeout(-1);
 
   libusb_open(lgdevs[0], &lg_handle);
@@ -125,45 +134,58 @@ libusb_device_handle *init(libusb_device **lgdevs) {
 }
 
 // Ajust the brightness as based on ch.
-bool handleChar(libusb_device **lgdevs, char ch) {
-  libusb_device_handle *lg_handle = init(lgdevs);
-  if (!lg_handle) {
-    return false;
-  }
-
-  int brightnessVolume = getBrightnessPercent(lg_handle);
-
+int handleChar(libusb_device_handle *lg_handle, char ch) {
   switch (ch) {
   case '+':
   case '=':
     // Brighten
-    brightnessVolume = setBrightnessPercent(lg_handle, brightnessVolume += BRIGHTNESS_STEP);
-    break;
+    return adjustBrightnessPercent(lg_handle, BRIGHTNESS_STEP);
   case '-':
   case '_':
     // Dim
-    brightnessVolume = setBrightnessPercent(lg_handle, brightnessVolume -= BRIGHTNESS_STEP);
-    break;
+    return adjustBrightnessPercent(lg_handle, -BRIGHTNESS_STEP);
   }
+  return -1;
+}
+
+// Ajust the brightness as based on ch.
+void adjustOnce(libusb_device **lgdevs, char ch) {
+  libusb_device_handle *lg_handle = init(lgdevs);
+  if (!lg_handle) {
+    return;
+  }
+
+  int brightnessPercent = handleChar(lg_handle, ch);
 
   cleanup(true, lg_handle);
 
-  printw("%d%\r", brightnessVolume);
-
-  return true;
+  printf("%d%\n", brightnessPercent);
 }
 
 // Adjust the brightness interactively
 void adjust(libusb_device **lgdevs) {
+  initscr();
   printw("Press + / - to adjust brightness.\n");
+
+  libusb_device_handle *lg_handle = init(lgdevs);
+  if (!lg_handle) {
+    return;
+  }
+
+  int brightnessPercent = getBrightnessPercent(lg_handle);
+  printw("Brightness volume is %d", brightnessPercent);
 
   char ch;
   while (1) {
     ch = getch();
-    clrtoeol();
-    if (ch == 'q' || !handleChar(lgdevs, ch)) {
+    if (ch == 'q') {
+      cleanup(true, lg_handle);
+      endwin();
       return;
     }
+    brightnessPercent = handleChar(lg_handle, ch);
+    clrtoeol();
+    printw("%d%\r", brightnessPercent);
   }
 }
 
@@ -242,7 +264,8 @@ int main(int argc, char *argv[]) {
   } else if (argc != 2) {
     adjust(lgdevs);
   } else {
-    handleChar(lgdevs, *argv[1]);
+    adjustOnce(lgdevs, *argv[1]);
   }
+
   return 0;
 }
