@@ -17,9 +17,11 @@ const uint16_t LG_VENDOR_ID = 0x43e;
 
 // These are the model ids that we recognize. If your monitor
 // is not working properly, you may need to add its id here.
-const int LG24MD4KL = 0x9a63;
-const int LG27MD5KL = 0x9a70;
-const int LG27MD5KA = 0x9a40;
+const int MODELS[] = {
+  0x9a63, // LG24MD4KL
+  0x9a70, // LG27MD5KL
+  0x9a40, // LG27MD5KA
+};
 
 const int LG_IFACE = 1;
 
@@ -189,6 +191,19 @@ void adjust(libusb_device **lgdevs) {
   }
 }
 
+// Determine whether or not the specified USB device is an LG monitor.
+bool isSupportedDevice(struct libusb_device_descriptor *desc) {
+  if (desc->idVendor != LG_VENDOR_ID) {
+    return false;
+  }
+  for (int i = 0; i < sizeof(MODELS)/sizeof(MODELS[0]); ++i) {
+    if (desc->idProduct == MODELS[i]) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Get a list of LG ultrafine usb devices. Return the count.
 int getLGUltrafineUsbDevices(libusb_device **devs, int usb_cnt, libusb_device ***lg_devs) {
   int lg_cnt = 0;
@@ -196,8 +211,7 @@ int getLGUltrafineUsbDevices(libusb_device **devs, int usb_cnt, libusb_device **
 
   for (int i = 0; i < usb_cnt; i++) {
     libusb_get_device_descriptor(devs[i], &desc);
-    if (desc.idVendor == LG_VENDOR_ID
-        && (desc.idProduct == LG24MD4KL || desc.idProduct == LG27MD5KA || desc.idProduct == LG27MD5KL)) {
+    if (isSupportedDevice(&desc)) {
       lg_cnt++;
     }
   }
@@ -211,7 +225,7 @@ int getLGUltrafineUsbDevices(libusb_device **devs, int usb_cnt, libusb_device **
   int k = 0;
   for (int i = 0; i < usb_cnt; i++) {
     int r = libusb_get_device_descriptor(devs[i], &desc);
-    if (desc.idProduct == LG24MD4KL || desc.idProduct == LG27MD5KA || desc.idProduct == LG27MD5KL) {
+    if (isSupportedDevice(&desc)) {
       (*lg_devs)[k++] = devs[i];
     }
   }
