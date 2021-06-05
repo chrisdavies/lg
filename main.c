@@ -1,7 +1,7 @@
 /**
  * main
  *
- * This is the source for lgbrite, a command for controlling the brightness
+ * This is the source for lg, a command for controlling the brightness
  * on USB-C LG monitors.
  *
  * It is based heavily on https://github.com/csujedihy/LG-Ultrafine-Brightness
@@ -221,9 +221,9 @@ int getLGUltrafineUsbDevices(libusb_device **devs, int usb_cnt, libusb_device **
 
 void printHelp() {
   printf("\n");
-  printf("  lgbrite +     brighten the screen\n");
-  printf("  lgbrite -     dim the screen\n");
-  printf("  lgbrite       interactive mode for adjusting brightness\n");
+  printf("  lg +     brighten the screen\n");
+  printf("  lg -     dim the screen\n");
+  printf("  lg       interactive mode for adjusting brightness\n");
   printf("\n");
 }
 
@@ -234,7 +234,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (argc > 2) {
-    printf("lgbrite cannot be called with more than one argument.\n");
+    printf("lg cannot be called with more than one argument.\n");
     printHelp();
     return 1;
   }

@@ -21,15 +21,15 @@ sudo dnf install ncurses-devel libusbx-devel gcc
 To build, run the following (replacing the C_INCLUDE_PATH with your system's path, if not using Fedora).
 
 ```
-C_INCLUDE_PATH=/usr/include/libusb-1.0/ gcc main.c -lncurses -lusb-1.0 -o lgbrite
+C_INCLUDE_PATH=/usr/include/libusb-1.0/ gcc main.c -lncurses -lusb-1.0 -o lg
 ```
 
 ## Run
 
-Sudo is required, or libusb segfaults. The `lg` bash script runs `sudo lgbrite`:
+Sudo is required, or libusb segfaults.
 
 ```
-lg
+sudo lg
 ```
 
 Running with no arguments will ask you to press + / - to adjust the brightness.
@@ -46,7 +46,7 @@ sudo visudo
 Add the following line (replace `REPLACEME` with your username):
 
 ```
-REPLACEME ALL=NOPASSWD:/usr/local/bin/lgbrite
+REPLACEME ALL=NOPASSWD:/usr/local/bin/lg
 ```
 
-This, assumes you've copied `lgbrite` and `lg` to `/usr/local/bin`.
+This, assumes you've copied `lg` to `/usr/local/bin`.
